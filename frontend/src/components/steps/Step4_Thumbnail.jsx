@@ -20,11 +20,10 @@ const QUALITY_OPTIONS = [
 function Step4_Thumbnail({ onNext, onBack }) {
   const { state, update, updateBatchResult, setBatchReviewIndex, resetBatchReviewIndex } = useVideoState();
   const [customUrl, setCustomUrl] = useState("");
+  const [visitedCards, setVisitedCards] = useState(new Set([0]));
 
   const isBatch = state.batchResults.length > 0;
   const currentVideo = isBatch ? state.batchResults[state.batchReviewIndex] : null;
-  const hasPrev = isBatch && state.batchReviewIndex > 0;
-  const hasNext = isBatch && state.batchReviewIndex < state.batchResults.length - 1;
 
   const youtubeLink = isBatch ? (currentVideo?.youtubeLink || currentVideo?.youtube_link || "") : state.youtubeLink;
   const selectedThumb = isBatch ? (currentVideo?.selectedThumb || "") : state.selectedThumb;
@@ -50,30 +49,32 @@ function Step4_Thumbnail({ onNext, onBack }) {
     }
   }
 
-  function handlePrev() {
+  function handleCardClick(index) {
     setCustomUrl("");
-    setBatchReviewIndex(state.batchReviewIndex - 1);
-  }
-
-  function handleNext() {
-    setCustomUrl("");
-    setBatchReviewIndex(state.batchReviewIndex + 1);
+    setBatchReviewIndex(index);
+    setVisitedCards(prev => new Set([...prev, index]));
   }
 
   function handleContinue() {
     if (isBatch) {
-      // Check all videos have thumbnails (allow skipping if no YouTube link)
+      // Check all cards have been visited
+      if (visitedCards.size < state.batchResults.length) {
+        const firstUnvisited = state.batchResults.findIndex((_, i) => !visitedCards.has(i));
+        handleCardClick(firstUnvisited);
+        return;
+      }
+
+      // Check all videos with YouTube links have thumbnails
       const incomplete = state.batchResults.findIndex(v => {
         const hasYoutubeLink = v.youtubeLink || v.youtube_link;
         return hasYoutubeLink && !v.selectedThumb;
       });
 
       if (incomplete !== -1) {
-        setBatchReviewIndex(incomplete);
+        handleCardClick(incomplete);
         return;
       }
 
-      // Reset to card 1 for export step
       resetBatchReviewIndex();
     }
     onNext();
@@ -99,11 +100,48 @@ function Step4_Thumbnail({ onNext, onBack }) {
         </h2>
         <p className="text-white/50 text-sm sm:text-base">
           {isBatch
-            ? `Select a thumbnail for each video. Navigate with Previous/Next buttons.`
+            ? `Select a thumbnail for each video. Click a card to navigate.`
             : "Select a still image from your YouTube video."
           }
         </p>
       </div>
+
+      {/* Batch video cards */}
+      {isBatch && (
+        <section className="space-y-3">
+          <h3 className="font-display font-semibold text-lg sm:text-xl text-white">Videos</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+            {state.batchResults.map((v, i) => {
+              const hasThumb = !!v.selectedThumb;
+              const isVisited = visitedCards.has(i);
+              const isCurrent = i === state.batchReviewIndex;
+              return (
+                <button
+                  key={i}
+                  onClick={() => handleCardClick(i)}
+                  className={`p-3 rounded-xl border text-left transition-all ${
+                    isCurrent
+                      ? "border-brand-secondary/50 bg-brand-primary/15"
+                      : "border-white/10 bg-white/5 hover:bg-white/10"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`w-5 h-5 rounded flex items-center justify-center text-xs font-bold ${
+                      isCurrent ? "bg-brand-secondary text-white" : "bg-white/10 text-white/50"
+                    }`}>
+                      {i + 1}
+                    </span>
+                    <span className="text-xs text-white/30 font-mono truncate">
+                      {hasThumb ? "Done" : isVisited ? "Viewed" : "Not viewed"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/70 truncate">{v.videoAbout || v.video_about || `Video ${i + 1}`}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* Batch video info */}
       {isBatch && currentVideo && (
@@ -144,7 +182,7 @@ function Step4_Thumbnail({ onNext, onBack }) {
           </div>
           <p className="text-white/40 text-sm sm:text-base">No YouTube video detected</p>
           <p className="text-xs sm:text-sm text-white/30 mt-1">
-            {isBatch ? "This video has no YouTube link. Click Previous/Next to navigate." : "Enter a YouTube URL above to load thumbnails"}
+            {isBatch ? "This video has no YouTube link. Click another card to navigate." : "Enter a YouTube URL above to load thumbnails"}
           </p>
         </div>
       ) : (
@@ -180,18 +218,7 @@ function Step4_Thumbnail({ onNext, onBack }) {
       {/* Navigation */}
       <div className="flex justify-between items-center pt-4 border-t border-white/5">
         <div className="flex gap-2">
-          {isBatch ? (
-            <>
-              <Button variant="ghost" onClick={handlePrev} disabled={!hasPrev}>
-                ← Previous
-              </Button>
-              <Button variant="ghost" onClick={handleNext} disabled={!hasNext}>
-                Next →
-              </Button>
-            </>
-          ) : (
-            <Button variant="ghost" onClick={onBack}>← Back</Button>
-          )}
+          {!isBatch && <Button variant="ghost" onClick={onBack}>← Back</Button>}
         </div>
         <Button onClick={handleContinue} disabled={!selectedThumb && !isBatch} className="w-full sm:w-auto">
           {isBatch ? "Continue to Export →" : "Continue →"}
@@ -201,19 +228,25 @@ function Step4_Thumbnail({ onNext, onBack }) {
       {/* Batch progress indicator */}
       {isBatch && (
         <div className="flex justify-center gap-1.5">
-          {state.batchResults.map((v, i) => (
-            <button
-              key={i}
-              onClick={() => { setCustomUrl(""); setBatchReviewIndex(i); }}
-              className={`w-2 h-2 rounded-full transition-all ${
-                i === state.batchReviewIndex
-                  ? "bg-brand-secondary w-6"
-                  : v.selectedThumb
-                  ? "bg-brand-primary/50"
-                  : "bg-white/20"
-              }`}
-            />
-          ))}
+          {state.batchResults.map((v, i) => {
+            const hasThumb = !!v.selectedThumb;
+            const isVisited = visitedCards.has(i);
+            return (
+              <button
+                key={i}
+                onClick={() => handleCardClick(i)}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  i === state.batchReviewIndex
+                    ? "bg-brand-secondary w-6"
+                    : hasThumb
+                    ? "bg-brand-primary/50"
+                    : isVisited
+                    ? "bg-white/30"
+                    : "bg-white/20"
+                }`}
+              />
+            );
+          })}
         </div>
       )}
     </div>

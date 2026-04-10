@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useVideoState } from "../../hooks/useVideoState";
-import { downloadCsv, downloadJson } from "../../services/exportHelpers";
+import { downloadCsv, downloadJson, downloadAllThumbnails } from "../../services/exportHelpers";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Badge } from "../ui/Badge";
@@ -9,6 +9,7 @@ function Step5_Export({ onReset }) {
   const { state, reset, resetAll } = useVideoState();
   const [copied, setCopied] = useState(null);
   const [expandedIdx, setExpandedIdx] = useState(0);
+  const [downloadingThumbs, setDownloadingThumbs] = useState(false);
 
   const isBatch = state.batchResults.length > 0;
   const videos = isBatch ? state.batchResults : [buildSingleVideo(state)];
@@ -143,6 +144,31 @@ function Step5_Export({ onReset }) {
         </div>
       )}
 
+      {/* Thumbnails Export */}
+      {isBatch && videos.some(v => v.selectedThumb) && (
+        <section className="space-y-3 sm:space-y-4">
+          <h3 className="font-display font-semibold text-lg sm:text-xl text-white">Thumbnails</h3>
+          <Card className="p-4 sm:p-6">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
+              <Button
+                onClick={async () => {
+                  setDownloadingThumbs(true);
+                  await downloadAllThumbnails(videos);
+                  setDownloadingThumbs(false);
+                }}
+                disabled={downloadingThumbs}
+                className="flex-1 sm:flex-none"
+              >
+                {downloadingThumbs ? "Downloading..." : `Download All ${videos.length} Thumbnails`}
+              </Button>
+            </div>
+            <p className="text-xs text-white/30 mt-2">
+              Downloads will start automatically. Allow multiple downloads if prompted by your browser.
+            </p>
+          </Card>
+        </section>
+      )}
+
       {/* Canva Bulk Export */}
       <section className="space-y-3 sm:space-y-4">
         <h3 className="font-display font-semibold text-lg sm:text-xl text-white">
@@ -205,7 +231,12 @@ function VideoExportCard({ video, index, copied, onCopy }) {
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-mono text-white/40 uppercase tracking-wider">YouTube Link</label>
               <div className="flex gap-1">
-                <a href={video.youtubeLink || video.youtube_link} target="_blank" rel="noopener noreferrer" className="px-2 py-1 bg-white/10 hover:bg-white/20 text-white text-xs rounded-lg transition-colors">
+                <a
+                  href={video.youtubeLink || video.youtube_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-3 py-1 bg-brand-primary hover:bg-brand-tertiary text-white text-xs font-medium rounded-lg transition-colors"
+                >
                   Open
                 </a>
                 <Button onClick={() => onCopy(video.youtubeLink || video.youtube_link, `yt-${index}`)} variant="ghost" size="sm">

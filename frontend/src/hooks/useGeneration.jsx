@@ -5,11 +5,11 @@ export function useGeneration() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  async function generate({ apiKey, videoAbout, clientContext, transcript }) {
+  async function generate(payload) {
     setLoading(true);
     setError(null);
     try {
-      const result = await generateContent({ apiKey, videoAbout, clientContext, transcript });
+      const result = await generateContent(payload);
       if (!result.success) throw new Error(result.error);
       return result.data; // { titles, description, tags, hooks }
     } catch (err) {

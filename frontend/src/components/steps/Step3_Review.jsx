@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useVideoState } from "../../hooks/useVideoState";
 import { TitleOption } from "../ui/TitleOption";
 import { HookOption } from "../ui/HookOption";
@@ -20,7 +21,7 @@ function Step3_Review({ onNext, onBack }) {
   const selectedTitle = isBatch ? currentVideo?.selectedTitle || "" : state.selectedTitle;
   const selectedHook = isBatch ? currentVideo?.selectedHook : state.selectedHook;
 
-  if (!titles.length && !isBatch) {
+  if (!titles.length) {
     return (
       <div className="text-center py-12 sm:py-20">
         <div className="w-16 sm:w-20 h-16 sm:h-20 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -28,7 +29,14 @@ function Step3_Review({ onNext, onBack }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
           </svg>
         </div>
-        <p className="text-white/40 mb-4 text-sm sm:text-base">No content generated yet</p>
+        <p className="text-white/40 mb-2 text-sm sm:text-base">
+          {isBatch && currentVideo && currentVideo.error ? `Error: ${currentVideo.error}` : "No content generated yet"}
+        </p>
+        {isBatch && (
+          <p className="text-white/30 text-xs mb-4">
+            Batch results: {state.batchResults.length} | Current: {state.batchReviewIndex}
+          </p>
+        )}
         <Button variant="secondary" onClick={onBack}>Go Back to Generate</Button>
       </div>
     );
