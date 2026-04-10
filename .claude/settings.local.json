@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx skillsadd:*)",
+      "Bash(cd backend:*)",
+      "Bash(cd frontend:*)",
+      "Bash(cd:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}
